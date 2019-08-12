@@ -1,0 +1,64 @@
+// Type your JavaScript code here...
+/* 
+ *
+ * Summary: Copies Tealium visitor id cookie value to localStorage to create a more 
+ *   durable anonymous visitor id.
+ * 
+ * Requirements:
+ *   - This localStorage value will not be updated until the 1 year point
+ *   - This JS Code below is copy/pasted to a JavaScript Extension in Tealium iQ 
+ *     with an "All Tags" scope
+ * 
+ * Note:
+ *   - Many vendors support mapping of visitor id, use the tealium_visitor_id for
+ *   mapping to override each vendor's visitor id (configure mapping where needed).
+ *   - This solution does not attempt to write back over the current cookie value that
+ *   may contain a different tealium_visitor_id.  Code shows how to update the 
+ *   tealium_visitor_id to default to the value retrieved from localStorage.  The data 
+ *   layer would then contain the most-likely-to-be-consistent value.
+ *   - While this technique can be used for more than just an anonymous id, remember
+ *   that any PII information is best kept out of client-side cookies and localStorage
+ *  
+ */
+
+// This string used for localStorage key as well as attribute name in data layer object
+var localStorageKey = "teal_vid2";
+
+// Update '365' number below to persist visitor id shorter/longer than 1 year
+var durationInMS = 365 * 24 * 60 * 60 * 1000;
+
+function getVisitorIdFromLocalStorage() {
+    var val = localStorage.getItem(localStorageKey);
+    return val || "";
+}
+
+/*
+ * Format of value in localStorage is 1551462917775_1551a323423465325235aafbe29177fe75
+ * (the timestamp of when it was written, followed by "_", followed by visitor id)
+ */
+function copyVisitorIdToLocalStorage(visitorId) {
+    var currentTime = new Date().getTime(),
+        timeWritten,
+        temp;
+
+    /*
+     * If the time elapsed is greater than duration, then overwrite with new id
+     * OR, if it is empty, then set for the first time
+     */
+    temp = getVisitorIdFromLocalStorage();
+    timeWritten = parseInt(temp.split("_")[0] || 0);
+    if (temp === "" || (currentTime - timeWritten) > durationInMS) {
+        localStorage.setItem(localStorageKey, currentTime + "_" + visitorId);
+    }
+}
+
+// The b object is a reference to current data layer
+copyVisitorIdToLocalStorage(b.tealium_visitor_id);
+b[localStorageKey] = getVisitorIdFromLocalStorage();
+
+/* 
+ * If you want to always default to use the value in localStorage for visitor id, then
+ * keep the following line below:
+ */
+
+b.tealium_visitor_id = b[localStorageKey] || b.tealium_visitor_id;
